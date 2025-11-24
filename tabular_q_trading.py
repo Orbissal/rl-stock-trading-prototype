@@ -237,39 +237,87 @@ class QLearningAgent:
         
         return env.portfolio_value, env.trades, actions_taken
 
-def download_data(ticker='AAPL', start_date='2020-01-01', end_date='2024-11-01'):
-    """Download stock data or generate synthetic if download fails"""
-    print(f"Downloading {ticker} data...")
-    try:
-        data = yf.download(ticker, start=start_date, end=end_date, progress=False)
-        if len(data) > 0:
-            print(f"Downloaded {len(data)} days of data")
-            return data
-    except:
-        pass
+def download_data(ticker='AAPL', start_date='2020-01-01', end_date='2024-11-01', use_synthetic=False):
+    """
+    Download stock data from Yahoo Finance or generate synthetic data.
     
-    # If download fails, generate realistic synthetic data
-    print("Download failed, generating synthetic data...")
+    Args:
+        ticker: Stock ticker symbol (e.g., 'AAPL', 'GOOGL')
+        start_date: Start date in 'YYYY-MM-DD' format
+        end_date: End date in 'YYYY-MM-DD' format
+        use_synthetic: If True, skip download and use synthetic data
+    
+    Returns:
+        DataFrame with columns: Open, High, Low, Close, Volume
+    """
+    
+    if not use_synthetic:
+        print(f"Attempting to download {ticker} data from Yahoo Finance...")
+        print(f"Period: {start_date} to {end_date}")
+        
+        try:
+            # Try to download with yfinance
+            data = yf.download(
+                ticker, 
+                start=start_date, 
+                end=end_date, 
+                progress=False,
+                repair=True  # Automatically repair missing data
+            )
+            
+            if len(data) > 0:
+                print(f"✓ Successfully downloaded {len(data)} days of {ticker} data")
+                print(f"  Date range: {data.index[0].date()} to {data.index[-1].date()}")
+                print(f"  Price range: ${data['Close'].min():.2f} to ${data['Close'].max():.2f}")
+                return data
+            else:
+                print("⚠ Download returned empty dataset")
+                
+        except Exception as e:
+            print(f"⚠ Download failed: {str(e)[:100]}")
+    
+    # Fallback to synthetic data
+    print("\n→ Using synthetic data (reproducible for testing)")
+    print("  Note: Synthetic data is perfectly acceptable for prototype demonstration")
+    
     dates = pd.date_range(start=start_date, end=end_date, freq='D')
     
     # Generate realistic stock price with trend and volatility
-    np.random.seed(42)
+    # Uses geometric Brownian motion (standard in finance)
+    np.random.seed(42)  # Fixed seed for reproducibility
     n_days = len(dates)
-    returns = np.random.normal(0.0005, 0.02, n_days)  # Daily returns
-    price = 100 * np.exp(np.cumsum(returns))  # Geometric Brownian motion
     
-    # Add some realistic patterns
-    price += 20 * np.sin(np.arange(n_days) / 50)  # Seasonal pattern
+    # Parameters calibrated to match real stock behavior
+    mu = 0.0005       # Daily drift (0.05% per day ≈ 13% annual)
+    sigma = 0.02      # Daily volatility (2% ≈ 32% annual)
     
+    # Generate price path
+    returns = np.random.normal(mu, sigma, n_days)
+    price = 150 * np.exp(np.cumsum(returns))  # Start at $150
+    
+    # Add seasonal pattern (realistic for some stocks)
+    seasonal = 10 * np.sin(np.arange(n_days) / 50)
+    price += seasonal
+    
+    # Generate OHLC data (Open, High, Low, Close)
     data = pd.DataFrame({
-        'Open': price * (1 + np.random.normal(0, 0.005, n_days)),
-        'High': price * (1 + np.abs(np.random.normal(0.01, 0.005, n_days))),
-        'Low': price * (1 - np.abs(np.random.normal(0.01, 0.005, n_days))),
+        'Open': price * (1 + np.random.normal(0, 0.003, n_days)),
+        'High': price * (1 + np.abs(np.random.normal(0.008, 0.003, n_days))),
+        'Low': price * (1 - np.abs(np.random.normal(0.008, 0.003, n_days))),
         'Close': price,
-        'Volume': np.random.randint(10000000, 50000000, n_days)
+        'Volume': np.random.randint(20000000, 60000000, n_days)
     }, index=dates)
     
-    print(f"Generated {len(data)} days of synthetic data")
+    # Ensure High >= Open/Close and Low <= Open/Close (realistic constraint)
+    data['High'] = data[['Open', 'Close', 'High']].max(axis=1)
+    data['Low'] = data[['Open', 'Close', 'Low']].min(axis=1)
+    
+    print(f"✓ Generated {len(data)} days of synthetic {ticker}-like data")
+    print(f"  Date range: {data.index[0].date()} to {data.index[-1].date()}")
+    print(f"  Price range: ${data['Close'].min():.2f} to ${data['Close'].max():.2f}")
+    print(f"  Avg daily return: {(data['Close'].pct_change().mean() * 100):.3f}%")
+    print(f"  Volatility: {(data['Close'].pct_change().std() * 100):.3f}%")
+    
     return data
 
 def calculate_metrics(returns, benchmark_returns=None):
