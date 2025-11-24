@@ -48,21 +48,29 @@ class TradingEnvironment:
         """Calculate Relative Strength Index"""
         if len(prices) < period + 1:
             return 50  # Neutral RSI if not enough data
-        
+        # Ensure prices are a 1-D numeric array to avoid object/array elements
+        prices = np.asarray(prices, dtype=float).ravel()
         deltas = np.diff(prices)
-        seed = deltas[:period+1]
-        up = seed[seed >= 0].sum() / period
+        # Use the first `period` deltas to seed Wilder's smoothing (no off-by-one)
+        seed = deltas[:period]
+        # Separate positive and negative moves (strict > / <) for correct averages
+        up = seed[seed > 0].sum() / period
         down = -seed[seed < 0].sum() / period
         rs = up / (down + 1e-10)
-        rsi = 100 - (100 / (1 + rs))
-        
+        # If there was no movement in the seed window, RSI is neutral (50)
+        if up == 0 and down == 0:
+            rsi = 50.0
+        else:
+            rsi = 100 - (100 / (1 + rs))
+
         # Calculate rolling RSI
         rsi_values = [rsi]
-        for i in range(period, len(deltas)):
-            delta = deltas[i]
-            # Use float() to avoid array ambiguity
-            if float(delta) > 0:
-                upval = float(delta)
+        # Iterate directly over remaining deltas and coerce to scalar floats
+        for delta in deltas[period:]:
+            # Coerce potential 0-d / 1-d numpy types to Python float safely
+            delta = float(np.asarray(delta).ravel()[0])
+            if delta > 0:
+                upval = delta
                 downval = 0.0
             else:
                 upval = 0.0
@@ -71,7 +79,11 @@ class TradingEnvironment:
             up = (up * (period - 1) + upval) / period
             down = (down * (period - 1) + downval) / period
             rs = up / (down + 1e-10)
-            rsi_values.append(100 - (100 / (1 + rs)))
+            # If no movement, keep RSI neutral
+            if up == 0 and down == 0:
+                rsi_values.append(50.0)
+            else:
+                rsi_values.append(100 - (100 / (1 + rs)))
         
         return rsi_values[-1] if rsi_values else 50
     
@@ -199,11 +211,12 @@ class QLearningAgent:
             target = reward + self.gamma * np.max(self.q_table[next_state])
         
         self.q_table[state, action] += self.lr * (target - self.q_table[state, action])
-        
-        # Decay epsilon
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
     
+    def decay_epsilon(self):
+        """Decay exploration rate once per episode."""
+        if self.epsilon > self.epsilon_min:
+            self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+
     def train(self, env, episodes=100):
         """Train the agent"""
         episode_rewards = []
@@ -221,6 +234,9 @@ class QLearningAgent:
                 total_reward += reward
             
             episode_rewards.append(total_reward)
+            
+            # Decay epsilon once per episode to control exploration rate
+            self.decay_epsilon()
             
             if (episode + 1) % 20 == 0:
                 print(f"Episode {episode+1}/{episodes}, Avg Reward: {np.mean(episode_rewards[-20:]):.2f}, Epsilon: {self.epsilon:.3f}")
@@ -270,6 +286,21 @@ def download_data(ticker='AAPL', start_date='2020-01-01', end_date='2024-11-01',
             )
             
             if len(data) > 0:
+                # Flatten yfinance MultiIndex columns (Price x Ticker) for single-ticker downloads
+                if isinstance(data.columns, pd.MultiIndex):
+                    try:
+                        data = data.droplevel('Ticker', axis=1)
+                    except (KeyError, ValueError):
+                        data.columns = data.columns.get_level_values(0)
+                # Drop helper columns we do not need in the trading env
+                for col in ['Repaired?', 'Dividends', 'Stock Splits']:
+                    if col in data.columns:
+                        data = data.drop(columns=col)
+                # Keep consistent column ordering for downstream consumers
+                ordered_cols = [col for col in ['Open', 'High', 'Low', 'Close', 'Volume'] if col in data.columns]
+                if ordered_cols:
+                    data = data[ordered_cols]
+
                 print(f"✓ Successfully downloaded {len(data)} days of {ticker} data")
                 print(f"  Date range: {data.index[0].date()} to {data.index[-1].date()}")
                 min_price = float(data['Close'].min())

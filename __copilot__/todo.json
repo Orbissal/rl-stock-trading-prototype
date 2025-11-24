@@ -1,0 +1,26 @@
+[
+	{
+		"id": 1,
+		"title": "Reproduce agent initialization failure",
+		"description": "Run demo and gather stack trace where agent initialization fails in TradingEnvironment.step",
+		"status": "completed"
+	},
+	{
+		"id": 2,
+		"title": "Fix state update to avoid pandas Series truthiness",
+		"description": "Ensure TradingEnvironment internal scalar values stay numeric when step() executes",
+		"status": "completed"
+	},
+	{
+		"id": 3,
+		"title": "Verify demo completes after fix",
+		"description": "Re-run demo_script.py to confirm initialization and training proceed without errors",
+		"status": "completed"
+	},
+	{
+		"id": 4,
+		"title": "Adjust epsilon decay scheduling",
+		"description": "Move epsilon decay from per-step to per-episode in QLearningAgent",
+		"status": "completed"
+	}
+]

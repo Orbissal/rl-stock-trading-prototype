@@ -90,6 +90,7 @@ def run_demo():
             total_reward += reward
         
         episode_rewards.append(total_reward)
+        agent.decay_epsilon()
         
         # Print progress every 5 episodes
         if (episode + 1) % 5 == 0:
