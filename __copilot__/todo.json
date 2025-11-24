@@ -22,5 +22,11 @@
 		"title": "Adjust epsilon decay scheduling",
 		"description": "Move epsilon decay from per-step to per-episode in QLearningAgent",
 		"status": "completed"
+	},
+	{
+		"id": 5,
+		"title": "Fix visualization output paths",
+		"description": "Update visualize_results.py to save figures under local results/ directory and ensure folder exists",
+		"status": "completed"
 	}
 ]

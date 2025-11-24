@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
+from pathlib import Path
 matplotlib.use('Agg')  # Non-interactive backend
 
 # Import the prototype
@@ -17,6 +18,8 @@ def create_visualizations(results):
     
     # Set style
     plt.style.use('seaborn-v0_8-darkgrid')
+    output_dir = Path('results')
+    output_dir.mkdir(parents=True, exist_ok=True)
     
     # Figure 1: Learning Curve
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -37,7 +40,7 @@ def create_visualizations(results):
     ax.legend()
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig('/mnt/user-data/outputs/learning_curve.png', dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / 'learning_curve.png', dpi=300, bbox_inches='tight')
     print("✓ Saved learning_curve.png")
     plt.close()
     
@@ -60,7 +63,7 @@ def create_visualizations(results):
     ax.grid(True, alpha=0.3)
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
     plt.tight_layout()
-    plt.savefig('/mnt/user-data/outputs/portfolio_comparison.png', dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / 'portfolio_comparison.png', dpi=300, bbox_inches='tight')
     print("✓ Saved portfolio_comparison.png")
     plt.close()
     
@@ -87,7 +90,7 @@ def create_visualizations(results):
     cbar.set_label('Q-Value', fontsize=12)
     
     plt.tight_layout()
-    plt.savefig('/mnt/user-data/outputs/q_table_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / 'q_table_heatmap.png', dpi=300, bbox_inches='tight')
     print("✓ Saved q_table_heatmap.png")
     plt.close()
     
@@ -109,7 +112,7 @@ def create_visualizations(results):
     ax2.set_title('Action Proportions', fontsize=12, fontweight='bold')
     
     plt.tight_layout()
-    plt.savefig('/mnt/user-data/outputs/action_distribution.png', dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / 'action_distribution.png', dpi=300, bbox_inches='tight')
     print("✓ Saved action_distribution.png")
     plt.close()
     
@@ -146,7 +149,7 @@ def create_visualizations(results):
         ax.grid(True, alpha=0.3)
         plt.xticks(rotation=45)
         plt.tight_layout()
-        plt.savefig('/mnt/user-data/outputs/trades_on_price.png', dpi=300, bbox_inches='tight')
+        plt.savefig(output_dir / 'trades_on_price.png', dpi=300, bbox_inches='tight')
         print("✓ Saved trades_on_price.png")
         plt.close()
 
@@ -270,7 +273,9 @@ if __name__ == "__main__":
     print(analysis)
     
     # Save analysis to file
-    with open('/mnt/user-data/outputs/prototype_analysis.txt', 'w') as f:
+    output_dir = Path('results')
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with open(output_dir / 'prototype_analysis.txt', 'w', encoding='utf-8') as f:
         f.write(analysis)
     print("\n✓ Saved prototype_analysis.txt")
     
