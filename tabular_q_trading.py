@@ -46,6 +46,9 @@ class TradingEnvironment:
     
     def _calculate_rsi(self, prices, period=14):
         """Calculate Relative Strength Index"""
+        if len(prices) < period + 1:
+            return 50  # Neutral RSI if not enough data
+        
         deltas = np.diff(prices)
         seed = deltas[:period+1]
         up = seed[seed >= 0].sum() / period
@@ -57,12 +60,13 @@ class TradingEnvironment:
         rsi_values = [rsi]
         for i in range(period, len(deltas)):
             delta = deltas[i]
-            if delta > 0:
-                upval = delta
-                downval = 0
+            # Use float() to avoid array ambiguity
+            if float(delta) > 0:
+                upval = float(delta)
+                downval = 0.0
             else:
-                upval = 0
-                downval = -delta
+                upval = 0.0
+                downval = float(-delta)
             
             up = (up * (period - 1) + upval) / period
             down = (down * (period - 1) + downval) / period
