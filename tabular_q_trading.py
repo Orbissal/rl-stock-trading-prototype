@@ -268,7 +268,9 @@ def download_data(ticker='AAPL', start_date='2020-01-01', end_date='2024-11-01',
             if len(data) > 0:
                 print(f"✓ Successfully downloaded {len(data)} days of {ticker} data")
                 print(f"  Date range: {data.index[0].date()} to {data.index[-1].date()}")
-                print(f"  Price range: ${data['Close'].min():.2f} to ${data['Close'].max():.2f}")
+                min_price = float(data['Close'].min())
+                max_price = float(data['Close'].max())
+                print(f"  Price range: ${min_price:.2f} to ${max_price:.2f}")
                 return data
             else:
                 print("⚠ Download returned empty dataset")
