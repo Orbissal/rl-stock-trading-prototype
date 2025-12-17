@@ -8,14 +8,14 @@ TABULAR Q-LEARNING TRADING AGENT - DETAILED ANALYSIS
    Final epsilon: 0.6058
    Learning rate: 0.1
    Discount factor: 0.95
-   Average reward (last 20 episodes): 46.32
+   Average reward (last 20 episodes): 25.38
 
 2. PERFORMANCE METRICS (Testing Period)
 ----------------------------------------------------------------------
    Q-Learning Agent:
-     Total Return: 19.50%
-     Sharpe Ratio: 0.94
-     Max Drawdown: -16.54%
+     Total Return: -5.90%
+     Sharpe Ratio: -0.22
+     Max Drawdown: -19.64%
 
    Buy-and-Hold Baseline:
      Total Return: 22.71%
@@ -25,17 +25,16 @@ TABULAR Q-LEARNING TRADING AGENT - DETAILED ANALYSIS
 3. TRADING BEHAVIOR
 ----------------------------------------------------------------------
    Total actions: 229
-   Hold: 110 (48.0%)
-   Buy: 119 (52.0%)
-   Sell: 0 (0.0%)
-   Number of trades executed: 1
+   Hold: 77 (33.6%)
+   Buy: 129 (56.3%)
+   Sell: 23 (10.0%)
+   Number of trades executed: 41
 
 4. ANALYSIS
 ----------------------------------------------------------------------
    • The Q-learning agent underperformed buy-and-hold during testing
    • This is expected for a basic tabular approach with limited features
    • However, the agent successfully learned a policy (converged)
-   • Lower maximum drawdown than buy-and-hold shows risk management
    • The agent exhibits active trading behavior (not passive)
    • Convergence achieved: policy stabilized after ~40 episodes
 
