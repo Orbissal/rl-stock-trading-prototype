@@ -6,6 +6,7 @@ Demonstrates context-dependent performance of Q-learning agent
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path
 from tabular_q_trading import (
     TradingEnvironment, QLearningAgent,
     download_data, calculate_metrics
@@ -163,6 +164,9 @@ def evaluate_2022_sideways_market():
 def create_2022_comparison_chart(rl_returns, baseline_returns, data, rl_metrics, baseline_metrics):
     """Create comparison chart for 2022 evaluation"""
     
+    output_dir = Path('results')
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
     fig, ax = plt.subplots(figsize=(12, 6))
     
     days = range(len(rl_returns))
@@ -192,7 +196,7 @@ def create_2022_comparison_chart(rl_returns, baseline_returns, data, rl_metrics,
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
     
     plt.tight_layout()
-    plt.savefig('results/2022_sideways_market_comparison.png', dpi=300, bbox_inches='tight')
+    plt.savefig(output_dir / '2022_sideways_market_comparison.png', dpi=300, bbox_inches='tight')
     print("✅ Saved results/2022_sideways_market_comparison.png")
     plt.close()
 

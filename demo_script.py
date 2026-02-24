@@ -9,6 +9,8 @@ the key concepts quickly while you record your video.
 import numpy as np
 import sys
 
+np.random.seed(42)
+
 # Add visual feedback
 def print_header(text):
     print("\n" + "="*60)

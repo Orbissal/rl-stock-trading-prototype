@@ -1132,7 +1132,7 @@ def create_visualisations(train_history, dqn_results, baseline_results,
         sell_trades = [t for t in trades if t[0] == 'SELL']
 
         # Offset step index by START_STEP (environment warm-up)
-        start = DQNTradingEnvironment.START_STEP
+        start = 20
         for i, trade in enumerate(buy_trades):
             idx = trade[1] - start
             if 0 <= idx < len(price_series):
