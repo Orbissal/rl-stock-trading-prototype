@@ -507,7 +507,7 @@ class DQNAgent:
     GAMMA              = 0.95    # Discount factor (same as Tier 1 for comparability)
     EPSILON_START      = 1.0     # Initial exploration rate
     EPSILON_MIN        = 0.01    # Minimum exploration rate (same as Tier 1)
-    EPSILON_DECAY      = 0.995   # Per-episode decay (same as Tier 1)
+    EPSILON_DECAY      = 0.990   # Per-episode decay (same as Tier 1)
     BATCH_SIZE         = 32      # Mini-batch size (Mnih et al. 2015 original value)
     BUFFER_SIZE        = 10000   # Replay buffer capacity
     TARGET_UPDATE_FREQ = 100     # Steps between target network updates (Mnih et al.)
@@ -1245,5 +1245,5 @@ def run_experiment(ticker='AAPL', episodes=100):
 
 
 if __name__ == '__main__':
-    results = run_experiment(ticker='AAPL', episodes=100)
+    results = run_experiment(ticker='AAPL', episodes=200)
     print("\n✓ Experiment complete. Results saved to results/ folder.")
