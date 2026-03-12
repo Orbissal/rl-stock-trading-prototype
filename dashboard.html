@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CM3070 — Intelligent Stock Trading Advisor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  /* ── VARIABLES ────────────────────────────────────────────── */
+  :root {
+    --bg:          #080c10;
+    --surface:     #0d1117;
+    --surface2:    #161b22;
+    --border:      #21262d;
+    --border2:     #30363d;
+    --text:        #e6edf3;
+    --muted:       #7d8590;
+    --accent:      #58a6ff;
+    --green:       #3fb950;
+    --red:         #f85149;
+    --yellow:      #d29922;
+    --purple:      #bc8cff;
+    --mono:        'JetBrains Mono', monospace;
+    --sans:        'Syne', sans-serif;
+    --radius:      6px;
+    --glow-green:  0 0 20px rgba(63,185,80,0.15);
+    --glow-red:    0 0 20px rgba(248,81,73,0.15);
+    --glow-blue:   0 0 20px rgba(88,166,255,0.15);
+  }
+
+  /* ── RESET ────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 14px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID NOISE TEXTURE ───────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(88,166,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(88,166,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── LAYOUT ───────────────────────────────────────────────── */
+  .wrapper { position: relative; z-index: 1; max-width: 1280px; margin: 0 auto; padding: 24px; }
+
+  /* ── HEADER ───────────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+    margin-bottom: 28px;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-mark {
+    width: 36px; height: 36px;
+    border: 1.5px solid var(--accent);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--accent);
+    box-shadow: var(--glow-blue);
+  }
+  .logo-text { font-family: var(--sans); font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .header-meta { font-size: 11px; color: var(--muted); text-align: right; line-height: 1.8; }
+  .status-dot {
+    display: inline-block; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--muted);
+    margin-right: 6px; vertical-align: middle;
+    transition: background 0.3s;
+  }
+  .status-dot.live { background: var(--green); box-shadow: 0 0 8px rgba(63,185,80,0.6); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* ── TABS ─────────────────────────────────────────────────── */
+  .tabs {
+    display: flex; gap: 2px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    color: var(--muted);
+    cursor: pointer; border: none; background: transparent;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── PANELS ───────────────────────────────────────────────── */
+  .panel { display: none; }
+  .panel.active { display: block; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* ── CARD ─────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+  }
+  .card-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--muted); margin-bottom: 16px;
+  }
+
+  /* ── GRID LAYOUTS ─────────────────────────────────────────── */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+  .grid-1-2 { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 16px; }
+
+  /* ── RECOMMENDATION PANEL ─────────────────────────────────── */
+  .rec-controls {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .select-wrapper {
+    position: relative;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .select-wrapper select {
+    background: transparent; border: none; outline: none;
+    color: var(--text); font-family: var(--mono); font-size: 13px;
+    padding: 9px 36px 9px 14px; cursor: pointer; appearance: none;
+  }
+  .select-wrapper::after {
+    content: '▾'; position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%); color: var(--muted); pointer-events: none;
+    font-size: 11px;
+  }
+  .btn {
+    padding: 9px 20px;
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    border: 1px solid var(--accent); border-radius: var(--radius);
+    background: rgba(88,166,255,0.08); color: var(--accent);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn:hover { background: rgba(88,166,255,0.18); box-shadow: var(--glow-blue); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn.loading { animation: shimmer 1s infinite; }
+  @keyframes shimmer { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  /* ── RECOMMENDATION CARD ──────────────────────────────────── */
+  .rec-result { display: none; }
+  .rec-result.visible { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; animation: fadeIn 0.3s ease; }
+
+  .action-badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    font-family: var(--sans); font-size: 28px; font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 12px;
+    border: 1px solid;
+  }
+  .action-badge.BUY  { background: rgba(63,185,80,0.1);  color: var(--green);  border-color: rgba(63,185,80,0.3);  box-shadow: var(--glow-green); }
+  .action-badge.SELL { background: rgba(248,81,73,0.1);  color: var(--red);    border-color: rgba(248,81,73,0.3);  box-shadow: var(--glow-red); }
+  .action-badge.HOLD { background: rgba(210,153,34,0.1); color: var(--yellow); border-color: rgba(210,153,34,0.3); box-shadow: 0 0 20px rgba(210,153,34,0.15); }
+
+  .action-icon { font-size: 22px; }
+
+  .confidence-bar-bg {
+    height: 6px; background: var(--border2); border-radius: 3px; margin: 10px 0 6px; overflow: hidden;
+  }
+  .confidence-bar { height: 100%; border-radius: 3px; transition: width 0.8s ease; background: var(--accent); }
+
+  /* ── Q-VALUE BARS ─────────────────────────────────────────── */
+  .q-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .q-label { width: 36px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .q-bar-bg { flex: 1; height: 20px; background: var(--surface2); border-radius: 3px; overflow: hidden; border: 1px solid var(--border); }
+  .q-bar { height: 100%; border-radius: 3px; transition: width 0.8s ease; display: flex; align-items: center; padding-left: 8px; }
+  .q-bar span { font-size: 10px; color: rgba(255,255,255,0.8); font-weight: 500; }
+  .q-bar.BUY-bar  { background: rgba(63,185,80,0.5); }
+  .q-bar.SELL-bar { background: rgba(248,81,73,0.5); }
+  .q-bar.HOLD-bar { background: rgba(210,153,34,0.5); }
+  .q-bar.active-bar { border: 1px solid rgba(255,255,255,0.2); }
+  .q-val { width: 56px; font-size: 11px; color: var(--muted); text-align: right; }
+
+  /* ── REASONS ──────────────────────────────────────────────── */
+  .reason { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; line-height: 1.5; }
+  .reason:last-child { border-bottom: none; }
+  .reason::before { content: '›'; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+  /* ── MARKET STATS ─────────────────────────────────────────── */
+  .stat { padding: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .stat-value { font-family: var(--sans); font-size: 20px; font-weight: 700; }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .up   { color: var(--green); }
+  .down { color: var(--red); }
+  .neutral { color: var(--yellow); }
+
+  /* ── PERFORMANCE TABLE ────────────────────────────────────── */
+  .perf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .perf-table th {
+    text-align: left; padding: 8px 12px;
+    font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); border-bottom: 1px solid var(--border2);
+    font-weight: 500;
+  }
+  .perf-table td {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .perf-table tr:last-child td { border-bottom: none; }
+  .perf-table tr:hover td { background: var(--surface2); }
+  .regime-name { font-family: var(--sans); font-weight: 600; font-size: 13px; }
+  .regime-period { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .metric-cell { font-family: var(--mono); }
+  .best { color: var(--green); font-weight: 700; }
+  .worst { color: var(--red); }
+  .badge-dqn     { background: rgba(88,166,255,0.15); color: var(--accent); padding: 2px 8px; border-radius: 3px; font-size: 10px; }
+  .badge-tabular { background: rgba(210,153,34,0.15); color: var(--yellow); padding: 2px 8px; border-radius: 3px; font-size: 10px; }
+  .badge-bh      { background: rgba(125,133,144,0.15); color: var(--muted); padding: 2px 8px; border-radius: 3px; font-size: 10px; }
+
+  /* ── CHART CONTAINER ──────────────────────────────────────── */
+  .chart-wrap { position: relative; height: 280px; }
+  .chart-wrap-tall { position: relative; height: 340px; }
+
+  /* ── ABOUT PANEL ──────────────────────────────────────────── */
+  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .about-section { margin-bottom: 20px; }
+  .about-section h3 { font-family: var(--sans); font-weight: 700; font-size: 14px; color: var(--accent); margin-bottom: 10px; }
+  .about-section p, .about-section li { font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .about-section ul { padding-left: 16px; }
+  .about-section li { margin-bottom: 4px; }
+  .tier-row { display: flex; gap: 12px; margin-bottom: 10px; }
+  .tier-badge {
+    flex-shrink: 0; width: 32px; height: 32px;
+    border: 1px solid var(--border2); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--accent);
+  }
+  .tier-info { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .tier-info strong { color: var(--text); }
+  .disclaimer-box {
+    background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.3);
+    border-radius: var(--radius); padding: 12px 16px;
+    font-size: 11px; color: var(--yellow); line-height: 1.6;
+    margin-top: 20px;
+  }
+
+  /* ── ERROR STATE ──────────────────────────────────────────── */
+  .error-box {
+    background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: var(--radius); padding: 14px 16px;
+    font-size: 12px; color: var(--red); line-height: 1.6; display: none;
+  }
+
+  /* ── LOADING SKELETON ─────────────────────────────────────── */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+    background-size: 200% 100%; border-radius: 4px;
+    animation: skeleton-anim 1.5s infinite;
+  }
+  @keyframes skeleton-anim { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* ── SCROLLBAR ────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @media (max-width: 768px) {
+    .grid-3, .grid-2, .grid-1-2, .rec-result.visible, .about-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">▲</div>
+      <div>
+        <div class="logo-text">Trading Advisor</div>
+        <div class="logo-sub">CM3070 Artificial Intelligence · University of London</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <span class="status-dot" id="statusDot"></span><span id="statusText">Connecting...</span><br>
+      DQN · Tabular Q-Learning · AAPL<br>
+      <span id="headerTime">—</span>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('recommendation')">Recommendation</button>
+    <button class="tab" onclick="switchTab('performance')">Performance</button>
+    <button class="tab" onclick="switchTab('about')">About</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TAB 1: RECOMMENDATION                                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="panel active" id="panel-recommendation">
+
+    <!-- Controls -->
+    <div class="rec-controls">
+      <div class="select-wrapper">
+        <select id="tickerSelect">
+          <option value="AAPL">AAPL — Apple Inc.</option>
+        </select>
+      </div>
+      <div class="select-wrapper">
+        <select id="positionSelect">
+          <option value="cash">Position: Cash</option>
+          <option value="holding">Position: Holding</option>
+        </select>
+      </div>
+      <button class="btn" id="recBtn" onclick="getRecommendation()">▶ Get Recommendation</button>
+    </div>
+
+    <!-- Error -->
+    <div class="error-box" id="errorBox"></div>
+
+    <!-- Result grid -->
+    <div class="rec-result" id="recResult">
+
+      <!-- LEFT: Action + Q-Values -->
+      <div>
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-title">AI Recommendation</div>
+          <div id="actionBadge" class="action-badge HOLD">
+            <span class="action-icon" id="actionIcon">—</span>
+            <span id="actionText">—</span>
+          </div>
+          <div style="font-size:11px; color:var(--muted); margin-bottom:8px;">
+            Confidence: <span id="confidenceVal" style="color:var(--text);">—</span>%
+          </div>
+          <div class="confidence-bar-bg">
+            <div class="confidence-bar" id="confidenceBar" style="width:0%"></div>
+          </div>
+          <div style="font-size:11px; color:var(--muted); margin-top:4px;" id="positionNote"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Q-Values (Action Preferences)</div>
+          <div id="qValues">
+            <div class="q-row">
+              <span class="q-label">BUY</span>
+              <div class="q-bar-bg"><div class="q-bar BUY-bar" id="qBarBuy" style="width:0%"><span id="qValBuyInner"></span></div></div>
+              <span class="q-val" id="qValBuy">—</span>
+            </div>
+            <div class="q-row">
+              <span class="q-label">HOLD</span>
+              <div class="q-bar-bg"><div class="q-bar HOLD-bar" id="qBarHold" style="width:0%"><span id="qValHoldInner"></span></div></div>
+              <span class="q-val" id="qValHold">—</span>
+            </div>
+            <div class="q-row">
+              <span class="q-label">SELL</span>
+              <div class="q-bar-bg"><div class="q-bar SELL-bar" id="qBarSell" style="width:0%"><span id="qValSellInner"></span></div></div>
+              <span class="q-val" id="qValSell">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Market + Reasoning -->
+      <div>
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-title">Market Snapshot — <span id="snapshotTicker">AAPL</span></div>
+          <div class="grid-3" style="margin-bottom:0;">
+            <div class="stat">
+              <div class="stat-label">Price</div>
+              <div class="stat-value" id="mktPrice">—</div>
+              <div class="stat-sub" id="mktChange">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">RSI (14)</div>
+              <div class="stat-value" id="mktRsi">—</div>
+              <div class="stat-sub" id="mktRsiSig">—</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Trend</div>
+              <div class="stat-value" id="mktTrend">—</div>
+              <div class="stat-sub" id="mktTrendSub">MA5 vs MA20</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Reasoning</div>
+          <div id="reasoningList">
+            <div style="color:var(--muted); font-size:12px;">Run a recommendation to see the AI's reasoning.</div>
+          </div>
+          <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border); font-size:10px; color:var(--muted);" id="recTimestamp"></div>
+        </div>
+      </div>
+
+    </div><!-- /rec-result -->
+
+    <!-- Initial empty state -->
+    <div id="emptyState" class="card" style="text-align:center; padding:48px 24px;">
+      <div style="font-size:32px; margin-bottom:16px;">◈</div>
+      <div style="font-family:var(--sans); font-size:16px; font-weight:700; margin-bottom:8px;">Ready for Analysis</div>
+      <div style="font-size:12px; color:var(--muted); max-width:320px; margin:0 auto; line-height:1.7;">
+        Select a ticker and position, then click <strong style="color:var(--accent);">Get Recommendation</strong> to run live DQN inference.
+      </div>
+    </div>
+
+  </div><!-- /panel-recommendation -->
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TAB 2: PERFORMANCE                                          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="panel" id="panel-performance">
+
+    <div class="grid-2" style="margin-bottom:16px;">
+      <!-- Return Chart -->
+      <div class="card">
+        <div class="card-title">Total Return (%) by Regime</div>
+        <div class="chart-wrap">
+          <canvas id="returnChart"></canvas>
+        </div>
+      </div>
+      <!-- Sharpe Chart -->
+      <div class="card">
+        <div class="card-title">Sharpe Ratio by Regime</div>
+        <div class="chart-wrap">
+          <canvas id="sharpeChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drawdown Chart full width -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">Maximum Drawdown (%) by Regime — lower is better</div>
+      <div class="chart-wrap">
+        <canvas id="drawdownChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="card">
+      <div class="card-title">Full Performance Summary — Multi-Regime Evaluation</div>
+      <div style="overflow-x:auto;">
+        <table class="perf-table" id="perfTable">
+          <thead>
+            <tr>
+              <th>Regime</th>
+              <th>Strategy</th>
+              <th>Total Return</th>
+              <th>Sharpe Ratio</th>
+              <th>Max Drawdown</th>
+              <th>Trades</th>
+            </tr>
+          </thead>
+          <tbody id="perfTableBody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); line-height:1.7;" id="perfSummary"></div>
+    </div>
+
+  </div><!-- /panel-performance -->
+
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- TAB 3: ABOUT                                                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="panel" id="panel-about">
+    <div class="about-grid">
+      <div>
+        <div class="about-section">
+          <h3>Project Overview</h3>
+          <p>An Intelligent Stock Trading Advisor using Reinforcement Learning, submitted as the CM3070 Final Year Project for the BSc Computer Science at the University of London.</p>
+          <p style="margin-top:8px;">The system employs a three-tier progressive architecture balancing theoretical rigour with practical implementation constraints.</p>
+        </div>
+        <div class="about-section">
+          <h3>Architecture</h3>
+          <div class="tier-row">
+            <div class="tier-badge">T1</div>
+            <div class="tier-info"><strong>Tabular Q-Learning</strong><br>40-state discrete space (RSI × trend × position). Trains in under 2 minutes. Sharpe 0.79 on holdout.</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier-badge">T2</div>
+            <div class="tier-info"><strong>Deep Q-Network</strong><br>11-dimensional continuous state. Experience replay + target network. Sharpe 1.61 in 2022 bear market.</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier-badge">T3</div>
+            <div class="tier-info"><strong>Web Interface (this)</strong><br>Flask API + dashboard. Live inference on AAPL. Rule-based explainability output.</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="about-section">
+          <h3>Key Findings</h3>
+          <ul>
+            <li>DQN outperforms buy-and-hold in bear markets (+43.59% vs −28.20% in 2022)</li>
+            <li>Neither agent consistently beats passive strategies across all regimes, consistent with Fischer (2018)</li>
+            <li>DQN achieves the smallest maximum drawdown in all three evaluated regimes</li>
+            <li>Overtrading in trending markets is the primary constraint on DQN performance</li>
+          </ul>
+        </div>
+        <div class="about-section">
+          <h3>Technology Stack</h3>
+          <ul>
+            <li>Python 3.10+, TensorFlow 2.x (Keras), NumPy, pandas</li>
+            <li>yfinance for live market data (Yahoo Finance)</li>
+            <li>Flask + Flask-CORS for the REST API</li>
+            <li>Chart.js for performance visualisations</li>
+          </ul>
+        </div>
+        <div class="about-section">
+          <h3>Selected References</h3>
+          <ul>
+            <li>Mnih et al. (2015). Human-level control through deep reinforcement learning. <em>Nature</em>, 518.</li>
+            <li>Watkins & Dayan (1992). Q-learning. <em>Machine Learning</em>, 8(3–4).</li>
+            <li>Fischer (2018). Reinforcement learning in financial markets — a survey. FAU.</li>
+            <li>Sun et al. (2023). RL for quantitative trading. <em>ACM TIST</em>, 14(3).</li>
+            <li>Puiutta & Veith (2020). Explainable RL: A survey. <em>CD-MAKE 2020</em>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="disclaimer-box">
+      ⚠ Research Prototype — Not Financial Advice. This system is developed solely for academic demonstration purposes as part of a university final year project. All recommendations are generated by an experimental AI model trained on historical data. Past performance does not guarantee future results. Do not make real investment decisions based on this system.
+    </div>
+  </div><!-- /panel-about -->
+
+</div><!-- /wrapper -->
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────────
+const API = 'http://127.0.0.1:5000';
+
+// ── REGIME DATA (loaded from API on startup) ───────────────────
+let regimeData = null;
+
+// ── UTILITIES ──────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = (n, d=2) => n >= 0 ? `+${n.toFixed(d)}` : n.toFixed(d);
+const fmtPct = n => fmt(n) + '%';
+
+// ── TAB SWITCHING ──────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const panels = ['recommendation','performance','about'];
+    t.classList.toggle('active', panels[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'panel-' + name);
+  });
+}
+
+// ── HEALTH CHECK ───────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/api/health`, { signal: AbortSignal.timeout(4000) });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      $('statusDot').className = 'status-dot live';
+      $('statusText').textContent = 'API Connected';
+    }
+  } catch {
+    $('statusDot').className = 'status-dot';
+    $('statusText').textContent = 'API Offline — start app.py';
+  }
+  $('headerTime').textContent = new Date().toLocaleTimeString();
+}
+
+// ── GET RECOMMENDATION ─────────────────────────────────────────
+async function getRecommendation() {
+  const ticker   = $('tickerSelect').value;
+  const position = $('positionSelect').value;
+  const btn      = $('recBtn');
+
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = '⟳ Fetching...';
+  $('errorBox').style.display = 'none';
+
+  try {
+    const r = await fetch(`${API}/api/recommendation?ticker=${ticker}&position=${position}`, {
+      signal: AbortSignal.timeout(30000)
+    });
+    const d = await r.json();
+
+    if (d.error) throw new Error(d.error);
+    renderRecommendation(d);
+
+  } catch(e) {
+    $('errorBox').style.display = 'block';
+    $('errorBox').textContent =
+      e.message.includes('fetch') || e.message.includes('Failed')
+        ? 'Cannot reach API. Make sure app.py is running: python app.py'
+        : `Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = '▶ Get Recommendation';
+  }
+}
+
+// ── RENDER RECOMMENDATION ──────────────────────────────────────
+function renderRecommendation(d) {
+  $('emptyState').style.display = 'none';
+  const el = $('recResult');
+  el.className = 'rec-result visible';
+
+  // Action badge
+  const icons = { BUY: '▲', SELL: '▼', HOLD: '■' };
+  const badge = $('actionBadge');
+  badge.className = `action-badge ${d.action_name}`;
+  $('actionIcon').textContent = icons[d.action_name] || '—';
+  $('actionText').textContent = d.action_name;
+
+  // Confidence
+  $('confidenceVal').textContent = d.confidence.toFixed(0);
+  $('confidenceBar').style.width = Math.min(d.confidence, 100) + '%';
+  const confColours = { BUY: 'var(--green)', SELL: 'var(--red)', HOLD: 'var(--yellow)' };
+  $('confidenceBar').style.background = confColours[d.action_name] || 'var(--accent)';
+
+  // Position note
+  $('positionNote').textContent =
+    d.position === 'holding'
+      ? 'Generated assuming you currently hold this stock.'
+      : 'Generated assuming you are currently in cash.';
+
+  // Q-values
+  const qv = d.q_values;
+  const allQ = [qv.BUY, qv.HOLD, qv.SELL];
+  const minQ = Math.min(...allQ);
+  const rangeQ = Math.max(...allQ) - minQ + 0.001;
+  const pct = v => ((v - minQ) / rangeQ * 100).toFixed(1) + '%';
+
+  $('qBarBuy').style.width  = pct(qv.BUY);
+  $('qBarHold').style.width = pct(qv.HOLD);
+  $('qBarSell').style.width = pct(qv.SELL);
+  $('qValBuyInner').textContent  = qv.BUY.toFixed(3);
+  $('qValHoldInner').textContent = qv.HOLD.toFixed(3);
+  $('qValSellInner').textContent = qv.SELL.toFixed(3);
+  $('qValBuy').textContent  = qv.BUY.toFixed(4);
+  $('qValHold').textContent = qv.HOLD.toFixed(4);
+  $('qValSell').textContent = qv.SELL.toFixed(4);
+
+  // Highlight winning bar
+  ['Buy','Hold','Sell'].forEach(a => {
+    $(`qBar${a}`).classList.toggle('active-bar', a.toUpperCase() === d.action_name);
+  });
+
+  // Market snapshot
+  const m = d.market;
+  $('snapshotTicker').textContent = d.ticker;
+  $('mktPrice').textContent = `$${m.current_price.toFixed(2)}`;
+  const chgEl = $('mktChange');
+  const chg = m.day_change_pct;
+  chgEl.textContent = `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}% today`;
+  chgEl.className = `stat-sub ${chg >= 0 ? 'up' : 'down'}`;
+
+  const rsiEl = $('mktRsi');
+  rsiEl.textContent = m.rsi.toFixed(1);
+  rsiEl.className = `stat-value ${m.rsi < 30 ? 'up' : m.rsi > 70 ? 'down' : 'neutral'}`;
+  $('mktRsiSig').textContent = m.rsi_signal;
+
+  const trendEl = $('mktTrend');
+  trendEl.textContent = m.trend === 'Uptrend' ? '↑' : '↓';
+  trendEl.className = `stat-value ${m.trend === 'Uptrend' ? 'up' : 'down'}`;
+  $('mktTrendSub').textContent = m.trend;
+
+  // Reasoning
+  const rl = $('reasoningList');
+  rl.innerHTML = d.reasons.map(r =>
+    `<div class="reason">${r}</div>`
+  ).join('');
+
+  // Timestamp
+  $('recTimestamp').textContent =
+    `Generated: ${new Date(d.timestamp).toLocaleString()} · Disclaimer: ${d.disclaimer}`;
+}
+
+// ── LOAD PERFORMANCE DATA ──────────────────────────────────────
+async function loadPerformance() {
+  try {
+    const r = await fetch(`${API}/api/performance`, { signal: AbortSignal.timeout(5000) });
+    regimeData = await r.json();
+    renderPerformanceTable(regimeData);
+    renderPerformanceCharts(regimeData);
+    $('perfSummary').textContent = regimeData.summary.key_finding;
+  } catch(e) {
+    $('perfSummary').textContent =
+      'Could not load performance data. Make sure app.py is running.';
+  }
+}
+
+// ── PERFORMANCE TABLE ──────────────────────────────────────────
+function renderPerformanceTable(data) {
+  const tbody = $('perfTableBody');
+  const strategies = [
+    { key: 'dqn',         label: 'DQN Agent',      badge: 'badge-dqn' },
+    { key: 'tabular',     label: 'Tabular Q-Learning', badge: 'badge-tabular' },
+    { key: 'buy_and_hold',label: 'Buy-and-Hold',   badge: 'badge-bh' },
+  ];
+
+  let rows = '';
+  data.regimes.forEach((regime, ri) => {
+    strategies.forEach((strat, si) => {
+      const res = regime.results[strat.key];
+      const isFirstInRegime = si === 0;
+      rows += `<tr>
+        ${isFirstInRegime ? `
+          <td rowspan="3" style="border-right:1px solid var(--border2);">
+            <div class="regime-name">${regime.name}</div>
+            <div class="regime-period">${regime.period}</div>
+          </td>` : ''}
+        <td><span class="${strat.badge}">${strat.label}</span></td>
+        <td class="metric-cell ${res.total_return > 0 ? 'up' : 'down'}">
+          ${fmtPct(res.total_return)}
+        </td>
+        <td class="metric-cell ${res.sharpe > 1 ? 'up' : res.sharpe < 0 ? 'down' : ''}">
+          ${res.sharpe.toFixed(2)}
+        </td>
+        <td class="metric-cell ${res.max_drawdown > -15 ? 'up' : 'down'}">
+          ${fmtPct(res.max_drawdown)}
+        </td>
+        <td class="metric-cell">${res.trades}</td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML = rows;
+}
+
+// ── PERFORMANCE CHARTS ─────────────────────────────────────────
+function renderPerformanceCharts(data) {
+  const labels  = data.regimes.map(r => r.name.replace(' (Test Set)', ''));
+  const dqnR    = data.regimes.map(r => r.results.dqn.total_return);
+  const tabR    = data.regimes.map(r => r.results.tabular.total_return);
+  const bhR     = data.regimes.map(r => r.results.buy_and_hold.total_return);
+  const dqnS    = data.regimes.map(r => r.results.dqn.sharpe);
+  const tabS    = data.regimes.map(r => r.results.tabular.sharpe);
+  const bhS     = data.regimes.map(r => r.results.buy_and_hold.sharpe);
+  const dqnD    = data.regimes.map(r => r.results.dqn.max_drawdown);
+  const tabD    = data.regimes.map(r => r.results.tabular.max_drawdown);
+  const bhD     = data.regimes.map(r => r.results.buy_and_hold.max_drawdown);
+
+  const defaults = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#7d8590', font: { family: 'JetBrains Mono', size: 11 } } } },
+    scales: {
+      x: { ticks: { color: '#7d8590', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: '#21262d' } },
+      y: { ticks: { color: '#7d8590', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: '#21262d' } },
+    }
+  };
+
+  const mkDatasets = (dqn, tab, bh) => [
+    { label: 'DQN Agent',         data: dqn, backgroundColor: 'rgba(88,166,255,0.7)',  borderColor: '#58a6ff', borderWidth: 1 },
+    { label: 'Tabular Q-Learning',data: tab, backgroundColor: 'rgba(210,153,34,0.7)', borderColor: '#d29922', borderWidth: 1 },
+    { label: 'Buy-and-Hold',      data: bh,  backgroundColor: 'rgba(125,133,144,0.5)', borderColor: '#7d8590', borderWidth: 1 },
+  ];
+
+  new Chart($('returnChart'),   { type: 'bar', data: { labels, datasets: mkDatasets(dqnR, tabR, bhR) }, options: { ...defaults, plugins: { ...defaults.plugins, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${fmt(ctx.raw)}%` } } } } });
+  new Chart($('sharpeChart'),   { type: 'bar', data: { labels, datasets: mkDatasets(dqnS, tabS, bhS) }, options: { ...defaults, plugins: { ...defaults.plugins, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw.toFixed(2)}` } } } } });
+  new Chart($('drawdownChart'), { type: 'bar', data: { labels, datasets: mkDatasets(dqnD, tabD, bhD) }, options: { ...defaults, plugins: { ...defaults.plugins, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${fmt(ctx.raw)}%` } } } } });
+}
+
+// ── INIT ───────────────────────────────────────────────────────
+checkHealth();
+setInterval(checkHealth, 10000);
+loadPerformance();
+$('headerTime').textContent = new Date().toLocaleTimeString();
+setInterval(() => $('headerTime').textContent = new Date().toLocaleTimeString(), 1000);
+</script>
+</body>
+</html>
