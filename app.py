@@ -71,18 +71,22 @@ CORS(app)   # Allow dashboard.html served from file:// to call this API
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def compute_market_snapshot(data):
+def compute_market_snapshot(data, state=None):
     """Return a dict of current market indicators for display."""
     closes  = data['Close'].values.astype(float)
     volumes = data['Volume'].values.astype(float)
 
-    # RSI (14-period, Wilder 1978)
-    deltas = np.diff(closes)
-    seed   = deltas[:14]
-    up     = seed[seed > 0].sum() / 14
-    down   = -seed[seed < 0].sum() / 14
-    rs     = up / (down + 1e-10)
-    rsi    = float(100 - (100 / (1 + rs)))
+    # RSI: use state[0] (the value the model actually used) so the snapshot
+    # always matches the explain_action reasoning displayed in the UI.
+    if state is not None:
+        rsi = float(state[0] * 100)   # state[0] is normalised RSI in [0,1]
+    else:
+        deltas = np.diff(closes)
+        seed   = deltas[:14]
+        up     = seed[seed > 0].sum() / 14
+        down   = -seed[seed < 0].sum() / 14
+        rs     = up / (down + 1e-10)
+        rsi    = float(100 - (100 / (1 + rs)))
 
     ma5  = float(np.mean(closes[-5:]))
     ma20 = float(np.mean(closes[-20:]))
@@ -167,7 +171,7 @@ def recommendation():
         explanation = explain_action(state, action, q_values)
 
         # 5. Market snapshot
-        market = compute_market_snapshot(data)
+        market = compute_market_snapshot(data, state=state)
 
         return jsonify({
             "ticker":      ticker,
